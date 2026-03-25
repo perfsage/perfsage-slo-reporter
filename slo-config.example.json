@@ -1,0 +1,53 @@
+{
+  "name": "E-Commerce Checkout Flow",
+  "description": "SLO thresholds for checkout performance monitoring",
+  "version": "1.0.0",
+  "slos": [
+    {
+      "id": "checkout-latency-p95",
+      "label": "POST /api/checkout",
+      "metricType": "RESPONSE_TIME",
+      "operator": "LTE",
+      "target": 500,
+      "unit": "ms",
+      "percentile": 95,
+      "critical": true,
+      "aiHint": "Consider optimizing database queries or adding caching layer"
+    },
+    {
+      "id": "checkout-success-rate",
+      "label": "POST /api/checkout",
+      "metricType": "SUCCESS_RATE",
+      "operator": "GTE",
+      "target": 99.5,
+      "unit": "percent",
+      "critical": true,
+      "aiHint": "Check backend service health and network stability"
+    },
+    {
+      "id": "product-search-p99",
+      "label": "GET /api/products/search",
+      "metricType": "RESPONSE_TIME",
+      "operator": "LTE",
+      "target": 200,
+      "unit": "ms",
+      "percentile": 99,
+      "critical": false,
+      "aiHint": "Review search indexing strategy and cache configuration"
+    },
+    {
+      "id": "overall-error-rate",
+      "label": "",
+      "metricType": "ERROR_RATE",
+      "operator": "LTE",
+      "target": 0.5,
+      "unit": "percent",
+      "critical": false,
+      "aiHint": "Implement circuit breakers and retry mechanisms"
+    }
+  ],
+  "notifications": {
+    "onCriticalFailure": true,
+    "summaryInterval": "test-run"
+  }
+}
