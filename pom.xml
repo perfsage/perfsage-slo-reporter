@@ -60,6 +60,14 @@
             <scope>provided</scope>
         </dependency>
 
+                     <!-- JMeter Components for listener support -->
+        <dependency>
+            <groupId>org.apache.jmeter</groupId>
+            <artifactId>ApacheJMeter_components</artifactId>
+            <version>${jmeter.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
         <!-- Jackson for JSON parsing (SLO config) -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
