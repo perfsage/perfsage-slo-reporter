@@ -1,6 +1,6 @@
 package com.perfsage.jmeter;
 
-import com.perfsage.jmeter.config.SLOConfig;
+import com.perfsage.jmeter.SLOConfig;
 import org.apache.jmeter.engine.StandardJMeterEngine;
 import org.apache.jmeter.reporters.ResultCollector;
 import org.apache.jmeter.samplers.SampleEvent;
