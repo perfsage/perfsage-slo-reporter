@@ -1,27 +1,16 @@
 package com.perfsage.jmeter;
 
-import com.perfsage.jmeter.SLOConfig;
-import org.apache.jmeter.engine.StandardJMeterEngine;
-import org.apache.jmeter.reporters.ResultCollector;
-import org.apache.jmeter.samplers.SampleEvent;
-import org.apache.jmeter.samplers.SampleListener;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.samplers.SampleResult;
-import org.apache.jmeter.threads.JMeterContextService;
-import org.apache.jmeter.threads.JMeterThread;
 import org.apache.jmeter.visualizers.backend.BackendListenerClient;
 import org.apache.jmeter.visualizers.backend.BackendListenerContext;
-import org.apache.jmeter.visualizers.backend.SamplerMetric;
-import org.apache.jmeter.visualizers.backend.UserMetric;
-import org.apache.jmeter.protocol.http.sampler.HTTPSampleResult;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.Instant;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -30,22 +19,22 @@ import java.util.concurrent.ConcurrentHashMap;
  * and performs SLO analysis at the end of the test.
  * Outputs a JSON report file containing analysis metrics.
  */
-public class SLOAnalysisListener implements BackendListenerClient, SampleListener {
+public class SLOAnalysisListener implements BackendListenerClient {
 
     private static final String DEFAULT_OUTPUT_DIR = System.getProperty("user.dir");
     private static final String DEFAULT_OUTPUT_FILE = "slo-report.json";
 
     private final Map<String, SampleStats> sampleStats = new ConcurrentHashMap<>();
     private final Map<String, Integer> failureReasons = new ConcurrentHashMap<>();
-    private final List<SampleEvent> allEvents = Collections.synchronizedList(new ArrayList<>());
+    private final List<SampleResult> allResults = Collections.synchronizedList(new ArrayList<>());
 
     private String outputDir;
     private String outputFile;
-    private SLOConfig sloConfig;
     private int targetRps;
     private boolean generateHtml;
     private int percentileThreshold;
     private int analysisWindowSeconds;
+    private final ObjectMapper objectMapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
 
     private static class SampleStats {
         long totalSamples = 0;
@@ -56,7 +45,7 @@ public class SLOAnalysisListener implements BackendListenerClient, SampleListene
         long minResponseTime = Long.MAX_VALUE;
         List<Long> responseTimes = new ArrayList<>();
 
-        synchronized void add(long responseTime, boolean success, String failureMessage) {
+        synchronized void add(long responseTime, boolean success) {
             totalSamples++;
             totalResponseTime += responseTime;
             if (success) successCount++;
@@ -103,6 +92,18 @@ public class SLOAnalysisListener implements BackendListenerClient, SampleListene
     // ============================================
 
     @Override
+    public Arguments getDefaultParameters() {
+        Arguments args = new Arguments();
+        args.addArgument("outputDir", DEFAULT_OUTPUT_DIR);
+        args.addArgument("outputFile", DEFAULT_OUTPUT_FILE);
+        args.addArgument("targetRps", "100");
+        args.addArgument("generateHtml", "false");
+        args.addArgument("percentileThreshold", "99");
+        args.addArgument("analysisWindowSeconds", "60");
+        return args;
+    }
+
+    @Override
     public void setupTest(BackendListenerContext context) {
         outputDir = context.getParameter("outputDir", DEFAULT_OUTPUT_DIR);
         outputFile = context.getParameter("outputFile", DEFAULT_OUTPUT_FILE);
@@ -118,20 +119,19 @@ public class SLOAnalysisListener implements BackendListenerClient, SampleListene
     }
 
     @Override
-    public void handleSampleResults(List<SampleEvent> events, BackendListenerContext context) {
-        for (SampleEvent event : events) {
-            allEvents.add(event);
+    public void handleSampleResults(List<SampleResult> sampleResults, BackendListenerContext context) {
+        for (SampleResult result : sampleResults) {
+            allResults.add(result);
 
-            SampleResult result = event.getResult();
             String label = result.getSampleLabel();
             long responseTime = result.getTime();
             boolean success = result.isSuccessful();
-            String failureMessage = result.getResponseMessage();
 
             sampleStats.computeIfAbsent(label, k -> new SampleStats())
-                    .add(responseTime, success, failureMessage);
+                    .add(responseTime, success);
 
-            if (!success && failureMessage != null && !failureMessage.isEmpty()) {
+            String failureMessage = result.getResponseMessage();
+            if (!success && failureMessage != null && !failureMessage.isBlank()) {
                 failureReasons.compute(failureMessage, (k, v) -> (v == null) ? 1 : v + 1);
             }
         }
@@ -144,16 +144,6 @@ public class SLOAnalysisListener implements BackendListenerClient, SampleListene
         long totalSamples = 0;
         long totalSuccess = 0;
         long totalFailure = 0;
-        List<SampleEvent> timeWindowEvents = new ArrayList<>();
-
-        long now = System.currentTimeMillis();
-        long windowStart = now - (analysisWindowSeconds * 1000L);
-
-        for (SampleEvent event : allEvents) {
-            if (event.getTime() >= windowStart) {
-                timeWindowEvents.add(event);
-            }
-        }
 
         for (Map.Entry<String, SampleStats> entry : sampleStats.entrySet()) {
             SampleStats stats = entry.getValue();
@@ -162,15 +152,23 @@ public class SLOAnalysisListener implements BackendListenerClient, SampleListene
             totalFailure += stats.failureCount;
         }
 
-        long overallSuccessRate = totalSamples > 0 ? (totalSuccess * 100) / totalSamples : 0;
+        double overallSuccessRate = totalSamples > 0 ? (totalSuccess * 100.0) / totalSamples : 0.0;
+        double overallErrorRate = totalSamples > 0 ? (totalFailure * 100.0) / totalSamples : 0.0;
         double actualRps = (double) totalSamples / analysisWindowSeconds;
 
         SLOAnalysisResult result = new SLOAnalysisResult();
-        result.setTimestamp(Instant.now().toString());
-        result.setTestSummary(totalSamples, overallSuccessRate);
+        result.setConfigName("BackendListenerContext");
+        result.setTestEndTime(System.currentTimeMillis());
+        result.setTotalSamples(totalSamples);
+        result.setTotalSuccess(totalSuccess);
+        result.setTotalErrors(totalFailure);
+        result.setAggregateSuccessRate(overallSuccessRate);
+        result.setAggregateErrorRate(overallErrorRate);
+        result.setAggregateAvgResponseTime(computeAggregateAvgResponseTime());
 
         long criticalP99 = 0;
         List<SLOAnalysisResult.SLOEvaluation> evaluations = new ArrayList<>();
+        Map<String, SLOAnalysisResult.LabelMetrics> labelMetrics = new LinkedHashMap<>();
 
         for (Map.Entry<String, SampleStats> entry : sampleStats.entrySet()) {
             String label = entry.getKey();
@@ -181,75 +179,79 @@ public class SLOAnalysisListener implements BackendListenerClient, SampleListene
 
             if (p99 > criticalP99) criticalP99 = p99;
 
-            SLOAnalysisResult.MetricSummary summary = new SLOAnalysisResult.MetricSummary();
-            summary.setLabel(label);
-            summary.setSamples(stats.totalSamples);
-            summary.setSuccessRate((double) stats.getSuccessRate());
-            summary.setAvgResponseTime(stats.getAvgResponseTime());
-            summary.setPercentiles(percentiles);
-            result.getSummary().put(label, summary);
+            SLOAnalysisResult.LabelMetrics metrics = new SLOAnalysisResult.LabelMetrics();
+            metrics.setSuccessCount((int) stats.successCount);
+            metrics.setErrorCount((int) stats.failureCount);
+            metrics.setAvgResponseTime((double) stats.getAvgResponseTime());
+            metrics.setMinResponseTime(stats.minResponseTime == Long.MAX_VALUE ? 0L : stats.minResponseTime);
+            metrics.setMaxResponseTime(stats.maxResponseTime);
+            metrics.setP90ResponseTime(percentiles.get("p90"));
+            metrics.setP95ResponseTime(percentiles.get("p95"));
+            metrics.setP99ResponseTime(percentiles.get("p99"));
+            labelMetrics.put(label, metrics);
 
-            SLOAnalysisResult.SLOEvaluation evaluation = new SLOAnalysisResult.SLOEvaluation();
-            evaluation.setLabel(label);
-            evaluation.setMetric("p99 latency");
-            evaluation.setTarget(500L);
-            evaluation.setActual(p99);
-            evaluation.setPass(p99 <= 500);
-            evaluation.setSeverity(p99 > 1000 ? "critical" : p99 > 500 ? "warning" : "ok");
-            evaluation.setAiHint("Consider optimizing database queries and adding caching layer");
-            evaluations.add(evaluation);
+            SLOAnalysisResult.SLOEvaluation latencyEval = new SLOAnalysisResult.SLOEvaluation();
+            latencyEval.setSloId("p99_latency:" + label);
+            latencyEval.setMetricType("RESPONSE_TIME");
+            latencyEval.setOperator("LTE");
+            latencyEval.setUnit("ms");
+            latencyEval.setTarget(500.0);
+            latencyEval.setActualValue((double) p99);
+            latencyEval.setPassed(p99 <= 500);
+            latencyEval.setCritical(p99 > 1000);
+            latencyEval.setSkipped(false);
+            latencyEval.setAiHint("Consider optimizing database queries and adding caching layer");
+            evaluations.add(latencyEval);
         }
 
         SLOAnalysisResult.SLOEvaluation rpsEvaluation = new SLOAnalysisResult.SLOEvaluation();
-        rpsEvaluation.setLabel("throughput");
-        rpsEvaluation.setMetric("sustained RPS");
+        rpsEvaluation.setSloId("throughput:rps");
+        rpsEvaluation.setMetricType("THROUGHPUT");
+        rpsEvaluation.setOperator("GTE");
+        rpsEvaluation.setUnit("req/s");
         rpsEvaluation.setTarget((double) targetRps);
-        rpsEvaluation.setActual(actualRps);
-        rpsEvaluation.setPass(actualRps >= targetRps);
-        rpsEvaluation.setSeverity(actualRps < targetRps * 0.8 ? "critical" : actualRps < targetRps ? "warning" : "ok");
+        rpsEvaluation.setActualValue(actualRps);
+        rpsEvaluation.setPassed(actualRps >= targetRps);
+        rpsEvaluation.setCritical(actualRps < targetRps * 0.8);
+        rpsEvaluation.setSkipped(false);
         rpsEvaluation.setAiHint("Scale horizontally by adding more application pods");
         evaluations.add(rpsEvaluation);
 
         SLOAnalysisResult.SLOEvaluation errorEvaluation = new SLOAnalysisResult.SLOEvaluation();
-        errorEvaluation.setLabel("error_rate");
-        errorEvaluation.setMetric("error rate");
+        errorEvaluation.setSloId("availability:success_rate");
+        errorEvaluation.setMetricType("SUCCESS_RATE");
+        errorEvaluation.setOperator("GTE");
+        errorEvaluation.setUnit("percent");
         errorEvaluation.setTarget(99.0);
-        errorEvaluation.setActual((double) overallSuccessRate);
-        errorEvaluation.setPass(overallSuccessRate >= 99.0);
-        errorEvaluation.setSeverity(overallSuccessRate < 95.0 ? "critical" : overallSuccessRate < 99.0 ? "warning" : "ok");
+        errorEvaluation.setActualValue(overallSuccessRate);
+        errorEvaluation.setPassed(overallSuccessRate >= 99.0);
+        errorEvaluation.setCritical(overallSuccessRate < 95.0);
+        errorEvaluation.setSkipped(false);
         errorEvaluation.setAiHint("Add circuit breakers and implement retry policies");
         evaluations.add(errorEvaluation);
 
-        result.setEvaluations(evaluations);
+        result.setLabelMetrics(labelMetrics);
+        result.setSloEvaluations(evaluations);
 
-        List<SLOAnalysisResult.AiSuggestion> suggestions = new ArrayList<>();
+        List<String> suggestions = new ArrayList<>();
         if (overallSuccessRate < 99.0) {
-            SLOAnalysisResult.AiSuggestion suggestion = new SLOAnalysisResult.AiSuggestion();
-            suggestion.setPriority("high");
-            suggestion.setTitle("Reduce error rate");
-            suggestion.setDescription("Implement retry mechanisms and circuit breakers");
-            suggestions.add(suggestion);
+            suggestions.add("[HIGH] Reduce error rate: implement retry mechanisms and circuit breakers");
         }
         if (criticalP99 > 500) {
-            SLOAnalysisResult.AiSuggestion suggestion = new SLOAnalysisResult.AiSuggestion();
-            suggestion.setPriority("medium");
-            suggestion.setTitle("Improve response latency");
-            suggestion.setDescription("Add Redis caching and optimize database queries");
-            suggestions.add(suggestion);
+            suggestions.add("[MEDIUM] Improve response latency: add caching and optimize database queries");
         }
         if (actualRps < targetRps) {
-            SLOAnalysisResult.AiSuggestion suggestion = new SLOAnalysisResult.AiSuggestion();
-            suggestion.setPriority("medium");
-            suggestion.setTitle("Scale application resources");
-            suggestion.setDescription("Increase pod replicas or upgrade instance types");
-            suggestions.add(suggestion);
+            suggestions.add("[MEDIUM] Scale application resources: increase replicas or upgrade instance types");
         }
-        result.setAiSuggestions(suggestions);
+        if (!failureReasons.isEmpty()) {
+            suggestions.add("[INFO] Top failure reasons: " + summarizeFailureReasons());
+        }
+        result.setSuggestions(suggestions);
 
         try {
             Path outputPath = Paths.get(outputDir, outputFile);
-            String json = result.toJson();
-            Files.writeString(outputPath, json);
+            Files.createDirectories(outputPath.getParent() != null ? outputPath.getParent() : Paths.get(DEFAULT_OUTPUT_DIR));
+            objectMapper.writeValue(outputPath.toFile(), result);
             System.out.println("[PerfSage] Report written to: " + outputPath);
         } catch (IOException e) {
             System.err.println("[PerfSage] Failed to write report: " + e.getMessage());
@@ -259,46 +261,24 @@ public class SLOAnalysisListener implements BackendListenerClient, SampleListene
         System.out.println("[PerfSage] Analysis complete!");
     }
 
-    // ============================================
-    // SampleListener Implementation
-    // ============================================
-
-    @Override
-    public void sampleStarted(SampleEvent e) {}
-
-    @Override
-    public void sampleStopped(SampleEvent e) {}
-
-    @Override
-    public void sampleOccurred(SampleEvent e) {}
-
-    // ============================================
-    // Lifecycle Methods (no-op for this implementation)
-    // ============================================
-
-    @Override
-    public void teardownTest() {}
-
-    @Override
-    public void addSample(SampleResult result) {
-        String label = result.getSampleLabel();
-        long responseTime = result.getTime();
-        boolean success = result.isSuccessful();
-        String failureMessage = result.getResponseMessage();
-
-        sampleStats.computeIfAbsent(label, k -> new SampleStats())
-                .add(responseTime, success, failureMessage);
+    private double computeAggregateAvgResponseTime() {
+        long totalTime = 0L;
+        long count = 0L;
+        synchronized (allResults) {
+            for (SampleResult sr : allResults) {
+                totalTime += sr.getTime();
+                count++;
+            }
+        }
+        return count > 0 ? (totalTime * 1.0) / count : 0.0;
     }
 
-    @Override
-    public void testStarted(String host) {}
-
-    @Override
-    public void testEnded(String host) {}
-
-    @Override
-    public void testStarted() {}
-
-    @Override
-    public void testEnded() {}
+    private String summarizeFailureReasons() {
+        return failureReasons.entrySet().stream()
+                .sorted((a, b) -> Integer.compare(b.getValue(), a.getValue()))
+                .limit(5)
+                .map(e -> e.getKey() + " (" + e.getValue() + ")")
+                .reduce((a, b) -> a + "; " + b)
+                .orElse("");
+    }
 }

@@ -31,6 +31,13 @@ public class SLOReporter {
     private final Map<String, List<SampleResult>> resultsByLabel = new HashMap<>();
     private final List<SampleResult> allResults = new ArrayList<>();
 
+    private String getPropertyAsString(String propertyName) {
+        if (propertyName == null || propertyName.isBlank()) {
+            return null;
+        }
+        return JMeterUtils.getProperty(propertyName);
+    }
+
     /**
      * Load SLO configuration from JSON file.
      */
@@ -87,7 +94,7 @@ public class SLOReporter {
         SLOAnalysisResult analysisResult = new SLOAnalysisResult();
         analysisResult.setConfigName(sloConfig.getName());
         analysisResult.setTestEndTime(System.currentTimeMillis());
-        analysisResult.setTotalSamples(allResults.size());
+        analysisResult.setTotalSamples((long) allResults.size());
         // Compute aggregate metrics
         computeAggregateMetrics(analysisResult);
         // Analyze each SLO
@@ -191,6 +198,7 @@ public class SLOReporter {
         evaluation.setCritical(slo.getCritical());
         evaluation.setTarget(slo.getTarget());
         evaluation.setUnit(slo.getUnit());
+        evaluation.setOperator(slo.getOperator());
         boolean passed = false;
         double actualValue = 0.0;
         SLOAnalysisResult.LabelMetrics labelMetrics = null;
@@ -281,7 +289,7 @@ public class SLOReporter {
         List<String> suggestions = new ArrayList<>();
         for (SLOAnalysisResult.SLOEvaluation eval : result.getSloEvaluations()) {
             if (!eval.isPassed()) {
-                if (eval.getCritical()) {
+                if (eval.isCritical()) {
                     suggestions.add(String.format(
                         "[CRITICAL] SLO '%s' FAILED: %s %s %s. Actual: %.2f %s",
                         eval.getSloId(), eval.getMetricType(), eval.getOperator(), eval.getTarget(), eval.getActualValue(), eval.getUnit()));
