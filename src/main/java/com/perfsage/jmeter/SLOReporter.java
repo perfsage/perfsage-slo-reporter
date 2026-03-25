@@ -1,13 +1,11 @@
 package com.perfsage.jmeter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.jmeter.reporters.AbstractListener;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.testelement.property.StringProperty;
 import org.apache.jmeter.util.JMeterUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -23,14 +21,11 @@ import java.util.Map;
  * To use: Add the JAR to JMeter's lib/ext directory, then reference
  * in jmeter.properties: slo.reporter.config.path=/path/to/slo-config.json
  */
-public class SLOReporter extends AbstractListener {
-
+public class SLOReporter {
     private static final Logger LOG = LoggerFactory.getLogger(SLOReporter.class);
     private static final long serialVersionUID = 1L;
-
     public static final String CONFIG_PATH_PROPERTY = "SLOReporter.configPath";
     public static final String OUTPUT_PATH_PROPERTY = "SLOReporter.outputPath";
-
     private SLOConfig sloConfig;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Map<String, List<SampleResult>> resultsByLabel = new HashMap<>();
@@ -44,7 +39,6 @@ public class SLOReporter extends AbstractListener {
         if (configPath == null || configPath.trim().isEmpty()) {
             configPath = JMeterUtils.getPropDefault("slo.reporter.config.path", "slo-config.json");
         }
-
         File configFile = new File(configPath);
         if (!configFile.exists()) {
             LOG.warn("SLO config file not found: {}. Using default empty config.", configPath);
@@ -53,12 +47,9 @@ public class SLOReporter extends AbstractListener {
             sloConfig.setDescription("No config file found - using defaults");
             return;
         }
-
         try {
             sloConfig = objectMapper.readValue(configFile, SLOConfig.class);
-            LOG.info("Loaded SLO config: {} - {} SLOs defined",
-                    sloConfig.getName(),
-                    sloConfig.getSlos() != null ? sloConfig.getSlos().size() : 0);
+            LOG.info("Loaded SLO config: {} - {} SLOs defined", sloConfig.getName(), sloConfig.getSlos() != null ? sloConfig.getSlos().size() : 0);
         } catch (IOException e) {
             LOG.error("Failed to parse SLO config file: {}", configPath, e);
             sloConfig = new SLOConfig();
@@ -68,7 +59,6 @@ public class SLOReporter extends AbstractListener {
     /**
      * Called for each sample result during test execution.
      */
-    @Override
     public void sampleOccurred(SampleResult sampleResult) {
         synchronized (allResults) {
             allResults.add(sampleResult);
@@ -80,15 +70,8 @@ public class SLOReporter extends AbstractListener {
     /**
      * Called when test run completes - generate SLO analysis report.
      */
-    @Override
     public void testEnded(String host) {
         LOG.info("SLOReporter: Test ended on host: {}", host);
-        analyzeAndReport();
-    }
-
-    @Override
-    public void testEnded() {
-        LOG.info("SLOReporter: Test ended");
         analyzeAndReport();
     }
 
@@ -100,30 +83,23 @@ public class SLOReporter extends AbstractListener {
             LOG.warn("No samples collected - skipping SLO analysis");
             return;
         }
-
         loadConfig();
-
         SLOAnalysisResult analysisResult = new SLOAnalysisResult();
         analysisResult.setConfigName(sloConfig.getName());
         analysisResult.setTestEndTime(System.currentTimeMillis());
         analysisResult.setTotalSamples(allResults.size());
-
         // Compute aggregate metrics
         computeAggregateMetrics(analysisResult);
-
         // Analyze each SLO
         if (sloConfig.getSlos() != null) {
             for (SLOConfig.SLODefinition slo : sloConfig.getSlos()) {
                 evaluateSLO(slo, analysisResult);
             }
         }
-
         // Generate AI suggestions
         generateAISuggestions(analysisResult);
-
         // Write report
         writeReport(analysisResult);
-
         LOG.info("SLO analysis complete. Report written to: {}", getOutputPath());
     }
 
@@ -134,7 +110,6 @@ public class SLOReporter extends AbstractListener {
         long totalErrors = 0;
         long totalSuccess = 0;
         long totalTime = 0;
-
         synchronized (allResults) {
             for (SampleResult sr : allResults) {
                 if (sr.isSuccessful()) {
@@ -145,18 +120,14 @@ public class SLOReporter extends AbstractListener {
                 totalTime += sr.getTime();
             }
         }
-
         result.setTotalErrors(totalErrors);
         result.setTotalSuccess(totalSuccess);
-
         double errorRate = (totalErrors * 100.0) / allResults.size();
         double successRate = (totalSuccess * 100.0) / allResults.size();
         double avgResponseTime = (double) totalTime / allResults.size();
-
         result.setAggregateErrorRate(errorRate);
         result.setAggregateSuccessRate(successRate);
         result.setAggregateAvgResponseTime(avgResponseTime);
-
         // Per-label metrics
         Map<String, SLOAnalysisResult.LabelMetrics> labelMetrics = new HashMap<>();
         for (Map.Entry<String, List<SampleResult>> entry : resultsByLabel.entrySet()) {
@@ -173,12 +144,10 @@ public class SLOReporter extends AbstractListener {
      */
     private SLOAnalysisResult.LabelMetrics computeLabelMetrics(List<SampleResult> samples) {
         SLOAnalysisResult.LabelMetrics metrics = new SLOAnalysisResult.LabelMetrics();
-
         int errors = 0;
         int success = 0;
         long totalTime = 0;
         long[] times = new long[samples.size()];
-
         for (int i = 0; i < samples.size(); i++) {
             SampleResult sr = samples.get(i);
             times[i] = sr.getTime();
@@ -189,21 +158,17 @@ public class SLOReporter extends AbstractListener {
             }
             totalTime += sr.getTime();
         }
-
         // Sort for percentile calculation
         java.util.Arrays.sort(times);
-
         metrics.setSuccessCount(success);
         metrics.setErrorCount(errors);
         metrics.setAvgResponseTime((double) totalTime / samples.size());
         metrics.setMinResponseTime(times[0]);
         metrics.setMaxResponseTime(times[times.length - 1]);
-
         // Percentiles
         metrics.setP90ResponseTime(percentile(times, 90));
         metrics.setP95ResponseTime(percentile(times, 95));
         metrics.setP99ResponseTime(percentile(times, 99));
-
         return metrics;
     }
 
@@ -226,21 +191,16 @@ public class SLOReporter extends AbstractListener {
         evaluation.setCritical(slo.getCritical());
         evaluation.setTarget(slo.getTarget());
         evaluation.setUnit(slo.getUnit());
-
         boolean passed = false;
         double actualValue = 0.0;
-
         SLOAnalysisResult.LabelMetrics labelMetrics = null;
         if (slo.getLabel() != null && !slo.getLabel().isEmpty()) {
             labelMetrics = result.getLabelMetrics().get(slo.getLabel());
         }
-
         switch (slo.getMetricType()) {
             case "RESPONSE_TIME":
                 if (labelMetrics != null) {
-                    actualValue = slo.getPercentile() != null
-                            ? getSLOResult.Percentile(labelMetrics, slo.getPercentile())
-                            : labelMetrics.getAvgResponseTime();
+                    actualValue = slo.getPercentile() != null ? getSLOResultPercentile(labelMetrics, slo.getPercentile()) : labelMetrics.getAvgResponseTime();
                     passed = compareValues(actualValue, slo.getOperator(), slo.getTarget());
                     evaluation.setActualValue(actualValue);
                 } else {
@@ -249,34 +209,25 @@ public class SLOReporter extends AbstractListener {
                     evaluation.setActualValue(actualValue);
                 }
                 break;
-
             case "ERROR_RATE":
-                actualValue = labelMetrics != null
-                        ? (labelMetrics.getErrorCount() * 100.0) / (labelMetrics.getSuccessCount() + labelMetrics.getErrorCount())
-                        : result.getAggregateErrorRate();
+                actualValue = labelMetrics != null ? (labelMetrics.getErrorCount() * 100.0) / (labelMetrics.getSuccessCount() + labelMetrics.getErrorCount()) : result.getAggregateErrorRate();
                 passed = compareValues(actualValue, slo.getOperator(), slo.getTarget());
                 evaluation.setActualValue(actualValue);
                 break;
-
             case "SUCCESS_RATE":
-                actualValue = labelMetrics != null
-                        ? (labelMetrics.getSuccessCount() * 100.0) / (labelMetrics.getSuccessCount() + labelMetrics.getErrorCount())
-                        : result.getAggregateSuccessRate();
+                actualValue = labelMetrics != null ? (labelMetrics.getSuccessCount() * 100.0) / (labelMetrics.getSuccessCount() + labelMetrics.getErrorCount()) : result.getAggregateSuccessRate();
                 passed = compareValues(actualValue, slo.getOperator(), slo.getTarget());
                 evaluation.setActualValue(actualValue);
                 break;
-
             case "THROUGHPUT":
                 // Would need elapsed time from test - simplified for v1
                 actualValue = -1;
                 evaluation.setSkipped(true);
                 break;
-
             default:
                 LOG.warn("Unknown SLO metric type: {}", slo.getMetricType());
                 evaluation.setSkipped(true);
         }
-
         evaluation.setPassed(passed);
         evaluation.setAiHint(slo.getAiHint());
         result.getSloEvaluations().add(evaluation);
@@ -328,42 +279,28 @@ public class SLOReporter extends AbstractListener {
      */
     private void generateAISuggestions(SLOAnalysisResult result) {
         List<String> suggestions = new ArrayList<>();
-
         for (SLOAnalysisResult.SLOEvaluation eval : result.getSloEvaluations()) {
             if (!eval.isPassed()) {
                 if (eval.getCritical()) {
                     suggestions.add(String.format(
-                            "[CRITICAL] SLO '%s' FAILED: %s of %s %s. Actual: %.2f %s",
-                            eval.getSloId(),
-                            eval.getMetricType(),
-                            eval.getOperator(),
-                            eval.getTarget(),
-                            eval.getActualValue(),
-                            eval.getUnit()));
-
+                        "[CRITICAL] SLO '%s' FAILED: %s %s %s. Actual: %.2f %s",
+                        eval.getSloId(), eval.getMetricType(), eval.getOperator(), eval.getTarget(), eval.getActualValue(), eval.getUnit()));
                     if (eval.getAiHint() != null && !eval.getAiHint().isEmpty()) {
-                        suggestions.add("  AI Hint: " + eval.getAiHint());
+                        suggestions.add(" AI Hint: " + eval.getAiHint());
                     }
                 } else {
                     suggestions.add(String.format(
-                            "[WARNING] SLO '%s' MISSED: %s of %s %s. Actual: %.2f %s",
-                            eval.getSloId(),
-                            eval.getMetricType(),
-                            eval.getOperator(),
-                            eval.getTarget(),
-                            eval.getActualValue(),
-                            eval.getUnit()));
+                        "[WARNING] SLO '%s' MISSED: %s %s %s. Actual: %.2f %s",
+                        eval.getSloId(), eval.getMetricType(), eval.getOperator(), eval.getTarget(), eval.getActualValue(), eval.getUnit()));
                 }
             }
         }
-
         // General recommendations
         if (result.getAggregateErrorRate() > 1.0) {
             suggestions.add(String.format(
-                    "[ADVISORY] Overall error rate is %.2f%%. Consider investigating failed requests.",
-                    result.getAggregateErrorRate()));
+                "[ADVISORY] Overall error rate is %.2f%%. Consider investigating failed requests.",
+                result.getAggregateErrorRate()));
         }
-
         result.setSuggestions(suggestions);
     }
 
