@@ -1,0 +1,40 @@
+name: CI Build and Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: maven
+
+    - name: Build with Maven
+      run: mvn -B package --file pom.xml
+
+    - name: Run tests
+      run: mvn -B test --file pom.xml
+
+    - name: Verify JAR build
+      run: |
+        ls -la target/*.jar
+        echo "JAR files built successfully"
+
+    - name: Upload JAR artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: perfsage-slo-reporter-jar
+        path: target/perfsage-slo-reporter-*.jar
+        retention-days: 30
