@@ -54,9 +54,9 @@ jobs:
             ## Installation
 
             **JMeter Plugins Manager (custom repo)**  
-            Add repository URL (after [GitHub Pages](https://docs.github.com/pages) is enabled for this repo):
+            Set `jpgc.repo.address` in `user.properties` (see [README](https://github.com/perfsage/perfsage-slo-reporter/blob/main/README.md)). Descriptor URL (works without GitHub Pages):
 
-            `https://perfsage.github.io/perfsage-slo-reporter/repo/perfsage-plugins.json`
+            `https://raw.githubusercontent.com/perfsage/perfsage-slo-reporter/main/repo/perfsage-plugins.json`
 
             **Manual**  
             Download `perfsage-slo-reporter-${{ steps.artifact.outputs.version }}.jar` from Assets below and place it in `$JMETER_HOME/lib/ext/`.

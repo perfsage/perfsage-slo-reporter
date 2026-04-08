@@ -6,7 +6,7 @@ Third-party plugins are indexed in the [jmeter-plugins](https://github.com/under
 
 1. Publish a **GitHub Release** with a versioned fat JAR (this repo’s `.github/workflows/release.yml` does that when you push tag `v` + `project.version`).
 2. Ensure the **`downloadUrl`** in your descriptor matches the release asset URL exactly.
-3. Prefer a stable **`screenshotUrl`** (for example the GitHub Pages asset this project deploys, or `raw.githubusercontent.com`).
+3. Prefer a stable **`screenshotUrl`**: this project uses **`raw.githubusercontent.com`** so the image resolves without GitHub Pages.
 
 ## Steps
 
@@ -25,8 +25,8 @@ The block below is a single plugin object. Paste it into the `various.json` arra
   "id": "perfsage-slo-reporter",
   "name": "PerfSage SLO Reporter",
   "description": "A JMeter plugin by PerfSage for SLO-based reporting and performance analysis.",
-  "screenshotUrl": "https://perfsage.github.io/perfsage-slo-reporter/assets/perfsage-slo-reporter-screenshot.png",
-  "helpUrl": "https://perfsage.com/docs/perfsage-slo-reporter",
+  "screenshotUrl": "https://raw.githubusercontent.com/perfsage/perfsage-slo-reporter/main/blog/images/perfsage-slo-report-sample.png",
+  "helpUrl": "https://github.com/perfsage/perfsage-slo-reporter/blob/main/README.md",
   "vendor": "perfsage.com",
   "markerClass": "com.perfsage.jmeter.SLOAnalysisListener",
   "componentClasses": [

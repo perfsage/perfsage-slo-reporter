@@ -40,7 +40,7 @@ cp perfsage-slo-reporter.jar "$JMETER_HOME/lib/ext/"
 
 ### Option 3: JMeter Plugins Manager
 
-See [README.md](README.md) (custom repository URL on GitHub Pages).
+See [README.md](README.md): set **`jpgc.repo.address`** in `user.properties` (there is no “Add repository” menu item).
 
 ## Verification
 

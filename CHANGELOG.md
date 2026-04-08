@@ -8,7 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- Development version bumped to `0.1.1-SNAPSHOT` after the `v0.1.0` tag.
+- Plugin descriptor **`screenshotUrl`** uses **`raw.githubusercontent.com`** so the screenshot loads without GitHub Pages; **`helpUrl`** points at the GitHub README.
+- README documents **`jpgc.repo.address`** for Plugins Manager (there is no “Add repository” menu); optional GitHub Pages catalog URL remains documented.
+- **`distributionManagement`** for GitHub Packages moved behind Maven profile **`github-packages`**; removed deprecated JCenter repository from `pom.xml`.
+- **`publish.yml`** runs only when OSSRH secrets are configured.
 
 ## [0.1.0] - 2026-04-08
 

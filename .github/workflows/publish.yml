@@ -6,6 +6,7 @@ on:
 
 jobs:
   publish:
+    if: ${{ secrets.OSSRH_USERNAME != '' && secrets.OSSRH_PASSWORD != '' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

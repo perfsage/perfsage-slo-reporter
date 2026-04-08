@@ -32,12 +32,19 @@ PerfSage SLO Reporter is a JMeter plugin that bridges the gap between raw perfor
 
 **Option A — JMeter Plugins Manager (custom repository)**
 
-1. In GitHub: enable **Pages** for this repository (**Settings → Pages → Build: GitHub Actions**). Merge the default branch so the **Deploy plugin repository JSON** workflow runs (or run it manually).
-2. In JMeter: **Options → Plugins Manager → Add repository**, paste:
+Plugins Manager does **not** expose an “Add repository” button. You add extra catalog URLs with the JMeter property **`jpgc.repo.address`** ([official docs](https://jmeter-plugins.org/wiki/PluginsManager/)).
 
-   `https://perfsage.github.io/perfsage-slo-reporter/repo/perfsage-plugins.json`
+1. Edit **`$JMETER_HOME/bin/user.properties`** (create it if missing).
+2. Append this repo’s descriptor after the default catalog, separated by **`;`**:
 
-3. Install **PerfSage SLO Reporter** from the list and restart JMeter if prompted.
+   ```properties
+   jpgc.repo.address=https://jmeter-plugins.org/repo/;https://raw.githubusercontent.com/perfsage/perfsage-slo-reporter/main/repo/perfsage-plugins.json
+   ```
+
+3. Restart JMeter, open **Options → Plugins Manager**, find **PerfSage SLO Reporter** on the **Available Plugins** tab, install, apply changes, restart if prompted.
+
+Optional: after you enable [GitHub Pages](https://docs.github.com/pages) for this repository, you can use  
+`https://perfsage.github.io/perfsage-slo-reporter/repo/perfsage-plugins.json` instead of the `raw.githubusercontent.com` URL (same JSON).
 
 **Option B — GitHub Releases (prebuilt JAR)**
 
