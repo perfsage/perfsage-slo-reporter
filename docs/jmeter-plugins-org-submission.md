@@ -45,3 +45,40 @@ The block below is a single plugin object. Paste it into the `various.json` arra
 ```
 
 Maintainers may request changes; follow their review.
+
+## Suggested PR to `undera/jmeter-plugins`
+
+Use **base branch `master`**. Keep the same JSON formatting style as the rest of `various.json` (indentation/spacing) to reduce diff noise.
+
+**Title**
+
+```text
+Add PerfSage SLO Reporter to various.json
+```
+
+**Description** (paste and adjust)
+
+```markdown
+Adds community plugin **perfsage-slo-reporter** to the catalog.
+
+- **Repo:** https://github.com/perfsage/perfsage-slo-reporter
+- **Release / JAR:** https://github.com/perfsage/perfsage-slo-reporter/releases/tag/v0.1.0
+- **License:** MIT
+- Descriptor matches [Plugin Repository Descriptor Format](https://jmeter-plugins.org/wiki/PluginRepositoryDescriptorFormat/).
+
+`downloadUrl` points at the GitHub Release asset; `screenshotUrl` uses `raw.githubusercontent.com` for a stable image URL.
+```
+
+After your PR is merged upstream, users can install from the default Plugins Manager catalog without a custom `jpgc.repo.address` entry.
+
+## Keep in sync with this repository
+
+The canonical hosted descriptor for **custom** installs is [`repo/perfsage-plugins.json`](../repo/perfsage-plugins.json) on `main`. When you cut a new release, update **both** that file and your `various.json` entry (new key under `versions`, correct `downloadUrl`).
+
+## Close your GitHub PR on `perfsage-slo-reporter` (if still open)
+
+If `fixing-build-issues` (or another branch) was merged into `main` locally and pushed, the GitHub PR may still show as open:
+
+1. Open the PR on GitHub.
+2. If GitHub detected the merge, use **Close pull request** and comment *Merged via local fast-forward; `main` is up to date.*
+3. Or use **Merge pull request** on GitHub if your `main` does not yet include the branch (avoid duplicate merges; compare `main` to the PR branch first).
