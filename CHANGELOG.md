@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-01-12
+## [0.1.0] - 2026-04-08
 
 ### Added
+- GitHub Actions release workflow (tag `v*` → attach versioned fat JAR) and Pages workflow for JMeter Plugins Manager descriptor + screenshot asset
+- Public plugin repository descriptor at `repo/perfsage-plugins.json`
 - Initial release of PerfSage SLO Reporter for Apache JMeter
 - SLOReporter class: Main JMeter listener that collects samples and generates SLO analysis reports
 - SLOAnalysisListener class: BackendListener implementation for real-time metrics streaming

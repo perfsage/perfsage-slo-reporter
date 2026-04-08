@@ -4,15 +4,13 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
 
 permissions:
   contents: write
-  packages: write
 
 jobs:
   release:
-    name: Create Release
+    name: Build and publish release assets
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -25,33 +23,46 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build JAR
-        run: mvn -B package -DskipTests --file pom.xml
+      - name: Verify tag matches POM version
+        run: |
+          TAG_VER="${GITHUB_REF#refs/tags/v}"
+          POM_VER=$(mvn -B help:evaluate -Dexpression=project.version -q -DforceStdout --file pom.xml)
+          if [ "$TAG_VER" != "$POM_VER" ]; then
+            echo "Tag version '$TAG_VER' must equal Maven project.version '$POM_VER' (push tag v\${project.version} from the release commit)." >&2
+            exit 1
+          fi
 
-      - name: Get tag name
-        id: tag
-        run: echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      - name: Build JAR
+        run: mvn -B clean package --file pom.xml
+
+      - name: Resolve main artifact
+        id: artifact
+        run: |
+          VERSION=$(mvn -B help:evaluate -Dexpression=project.version -q -DforceStdout --file pom.xml)
+          JAR="target/perfsage-slo-reporter-${VERSION}.jar"
+          test -f "$JAR"
+          echo "jar_path=$JAR" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag_name=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag.outputs.tag_name }}
-          name: PerfSage SLO Reporter ${{ steps.tag.outputs.tag_name }}
+          tag_name: ${{ steps.artifact.outputs.tag_name }}
+          name: PerfSage SLO Reporter ${{ steps.artifact.outputs.tag_name }}
           body: |
-            ## Release Notes
+            ## Installation
 
-            ### What's New
-            - Latest improvements and bug fixes
+            **JMeter Plugins Manager (custom repo)**  
+            Add repository URL (after [GitHub Pages](https://docs.github.com/pages) is enabled for this repo):
 
-            ### Installation
-            ```bash
-            mvn dependency:copy -Dartifact=com.perfsage:perfsage-slo-reporter:${{ steps.tag.outputs.tag_name }}:jar
-            ```
+            `https://perfsage.github.io/perfsage-slo-reporter/repo/perfsage-plugins.json`
 
-            ### Documentation
-            See [README.md](https://github.com/perfsage/perfsage-slo-reporter/blob/main/README.md) for usage instructions.
-          files: |
-            target/perfsage-slo-reporter-*.jar
+            **Manual**  
+            Download `perfsage-slo-reporter-${{ steps.artifact.outputs.version }}.jar` from Assets below and place it in `$JMETER_HOME/lib/ext/`.
+
+            See [README](https://github.com/perfsage/perfsage-slo-reporter/blob/main/README.md) for Backend Listener usage.
+          files: ${{ steps.artifact.outputs.jar_path }}
           draft: false
           prerelease: false
           generate_release_notes: true

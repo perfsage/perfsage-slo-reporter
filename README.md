@@ -20,8 +20,8 @@ PerfSage SLO Reporter is a JMeter plugin that bridges the gap between raw perfor
 |---------|-------------|
 | SLO Threshold Definition | Define response time, error rate, and throughput SLOs |
 | Automatic Compliance Checking | Real-time evaluation during test execution |
-| AI Anomaly Detection | Identifies unusual patterns in response times and errors |
-| Smart Report Generation | HTML, PDF, and Markdown report exports |
+| Anomaly-style insights | Heuristic notes on tails, errors, and spikes (statistical v1; optional LLM hints are future/BYOK) |
+| Smart Report Generation | HTML (Chart.js dashboard), Markdown, optional PDF next to JSON |
 | CI/CD Integration | Exit with non-zero code on SLO violations |
 | Slack/Email Notifications | Automated alerts for test failures |
 | Trend Analysis | Compare results across multiple test runs |
@@ -30,15 +30,35 @@ PerfSage SLO Reporter is a JMeter plugin that bridges the gap between raw perfor
 
 ### 1. Installation
 
+**Option A — JMeter Plugins Manager (custom repository)**
+
+1. In GitHub: enable **Pages** for this repository (**Settings → Pages → Build: GitHub Actions**). Merge the default branch so the **Deploy plugin repository JSON** workflow runs (or run it manually).
+2. In JMeter: **Options → Plugins Manager → Add repository**, paste:
+
+   `https://perfsage.github.io/perfsage-slo-reporter/repo/perfsage-plugins.json`
+
+3. Install **PerfSage SLO Reporter** from the list and restart JMeter if prompted.
+
+**Option B — GitHub Releases (prebuilt JAR)**
+
 ```bash
-# Clone and build
+VERSION=0.1.0
+curl -fsSL -o perfsage-slo-reporter.jar \
+  "https://github.com/perfsage/perfsage-slo-reporter/releases/download/v${VERSION}/perfsage-slo-reporter-${VERSION}.jar"
+cp perfsage-slo-reporter.jar "$JMETER_HOME/lib/ext/"
+```
+
+**Option C — Build from source**
+
+```bash
 git clone https://github.com/perfsage/perfsage-slo-reporter.git
 cd perfsage-slo-reporter
 mvn clean package
-
-# Install to JMeter
-cp target/perfsage-slo-reporter-*.jar $JMETER_HOME/lib/ext/
+VERSION=$(mvn -q -DforceStdout help:evaluate -Dexpression=project.version)
+cp "target/perfsage-slo-reporter-${VERSION}.jar" "$JMETER_HOME/lib/ext/"
 ```
+
+Use **Backend Listener** implementation class `com.perfsage.jmeter.SLOAnalysisListener` in your test plan (see [SETUP.md](SETUP.md)).
 
 ### 2. Configure SLOs
 
@@ -64,11 +84,14 @@ perfsage.slo.error.threshold=1.0
 jmeter -n -t your-test.jmx -l results.jtl
 ```
 
+After the run, open **`slo-report.html`** in a browser (same directory as `slo-report.json`). Non-GUI mode has no live Swing dashboard; the HTML file is the visual report.
+
 ## Documentation
 
 | Document | Description |
 |----------|-------------|
 | [SETUP.md](SETUP.md) | Installation and verification guide |
+| [docs/jmeter-plugins-org-submission.md](docs/jmeter-plugins-org-submission.md) | Adding this plugin to the official jmeter-plugins.org catalog |
 | [CONFIG.md](CONFIG.md) | Configuration reference and options |
 | [EXAMPLES.md](EXAMPLES.md) | Practical examples and use cases |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |

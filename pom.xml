@@ -6,7 +6,7 @@
 
     <groupId>com.perfsage</groupId>
     <artifactId>perfsage-slo-reporter</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
     <packaging>jar</packaging>
 
     <name>PerfSage SLO Reporter</name>
@@ -29,8 +29,8 @@
     </developers>
 
     <scm>
-        <connection>scm:git:git://github.com/perfsage/perfsage-slo-reporter.git</connection>
-        <developerConnection>scm:git:ssh://github.com:perfsage/perfsage-slo-reporter.git</developerConnection>
+        <connection>scm:git:https://github.com/perfsage/perfsage-slo-reporter.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/perfsage/perfsage-slo-reporter.git</developerConnection>
         <url>https://github.com/perfsage/perfsage-slo-reporter</url>
     </scm>
 
@@ -82,6 +82,12 @@
             <version>2.0.13</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>2.0.30</version>
+        </dependency>
+
         <!-- Test dependencies -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -96,6 +102,14 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/perfsage/perfsage-slo-reporter</url>
+        </repository>
+    </distributionManagement>
 
     <build>
         <plugins>
@@ -122,8 +136,9 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
-                            <shadedArtifactAttached>true</shadedArtifactAttached>
-                            <shadedClassifierName>all</shadedClassifierName>
+                            <!-- Single fat JAR as the main artifact (lib/ext + Plugins Manager). -->
+                            <shadedArtifactAttached>false</shadedArtifactAttached>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
                             <filters>
                                 <filter>
                                     <artifact>*:*</artifact>
@@ -148,6 +163,15 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.3.1</version>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-release-plugin</artifactId>
+                <version>3.1.1</version>
+                <configuration>
+                    <tagNameFormat>v@{project.version}</tagNameFormat>
+                </configuration>
             </plugin>
 
             <!-- Source Plugin -->

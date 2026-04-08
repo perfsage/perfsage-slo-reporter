@@ -1,0 +1,23 @@
+[
+  {
+    "id": "perfsage-slo-reporter",
+    "name": "PerfSage SLO Reporter",
+    "description": "A JMeter plugin by PerfSage for SLO-based reporting and performance analysis.",
+    "screenshotUrl": "https://perfsage.github.io/perfsage-slo-reporter/assets/perfsage-slo-reporter-screenshot.png",
+    "helpUrl": "https://perfsage.com/docs/perfsage-slo-reporter",
+    "vendor": "perfsage.com",
+    "markerClass": "com.perfsage.jmeter.SLOAnalysisListener",
+    "componentClasses": [
+      "com.perfsage.jmeter.SLOAnalysisListener",
+      "com.perfsage.jmeter.SLOReporter"
+    ],
+    "versions": {
+      "0.1.0": {
+        "downloadUrl": "https://github.com/perfsage/perfsage-slo-reporter/releases/download/v0.1.0/perfsage-slo-reporter-0.1.0.jar",
+        "changes": "Initial public release",
+        "libs": {},
+        "depends": []
+      }
+    }
+  }
+]

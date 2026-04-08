@@ -65,6 +65,17 @@ public class SLOAnalysisResult {
     @JsonProperty("allSlosPassed")
     private Boolean allSlosPassed;
 
+    /**
+     * Where textual hints come from. {@code static_catalog} = bundled templates (no LLM API).
+     * Future: {@code openai}, {@code azure}, etc., when BYOK is wired.
+     */
+    @JsonProperty("hintSource")
+    private String hintSource = "static_catalog";
+
+    /** Statistical / heuristic anomaly notes (Phase 1); not from external AI APIs. */
+    @JsonProperty("anomalies")
+    private List<AnomalyFinding> anomalies = new ArrayList<>();
+
     public String getVersion() {
         return version;
     }
@@ -172,6 +183,22 @@ public class SLOAnalysisResult {
 
     public void setAllSlosPassed(Boolean allSlosPassed) {
         this.allSlosPassed = allSlosPassed;
+    }
+
+    public String getHintSource() {
+        return hintSource;
+    }
+
+    public void setHintSource(String hintSource) {
+        this.hintSource = hintSource;
+    }
+
+    public List<AnomalyFinding> getAnomalies() {
+        return anomalies;
+    }
+
+    public void setAnomalies(List<AnomalyFinding> anomalies) {
+        this.anomalies = anomalies != null ? anomalies : new ArrayList<>();
     }
 
     /**
@@ -381,6 +408,67 @@ public class SLOAnalysisResult {
 
         public void setAiHint(String aiHint) {
             this.aiHint = aiHint;
+        }
+    }
+
+    /**
+     * Lightweight anomaly / insight row for reports and JSON export.
+     */
+    public static class AnomalyFinding {
+
+        @JsonProperty("id")
+        private String id;
+
+        @JsonProperty("severity")
+        private String severity;
+
+        @JsonProperty("category")
+        private String category;
+
+        @JsonProperty("message")
+        private String message;
+
+        @JsonProperty("relatedLabel")
+        private String relatedLabel;
+
+        public String getId() {
+            return id;
+        }
+
+        public void setId(String id) {
+            this.id = id;
+        }
+
+        public String getSeverity() {
+            return severity;
+        }
+
+        public void setSeverity(String severity) {
+            this.severity = severity;
+        }
+
+        public String getCategory() {
+            return category;
+        }
+
+        public void setCategory(String category) {
+            this.category = category;
+        }
+
+        public String getMessage() {
+            return message;
+        }
+
+        public void setMessage(String message) {
+            this.message = message;
+        }
+
+        public String getRelatedLabel() {
+            return relatedLabel;
+        }
+
+        public void setRelatedLabel(String relatedLabel) {
+            this.relatedLabel = relatedLabel;
         }
     }
 }

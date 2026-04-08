@@ -20,32 +20,36 @@ cd perfsage-slo-reporter
 # Build with Maven
 mvn clean package
 
-# Copy the JAR to JMeter's lib/ext directory
-cp target/perfsage-slo-reporter-*.jar $JMETER_HOME/lib/ext/
+# Copy the fat JAR to JMeter's lib/ext (exclude -sources / -javadoc if present)
+VERSION=$(mvn -q -DforceStdout help:evaluate -Dexpression=project.version)
+cp "target/perfsage-slo-reporter-${VERSION}.jar" "$JMETER_HOME/lib/ext/"
 
 # Restart JMeter
 ```
 
 ### Option 2: Download JAR from Releases
 
+Release assets are named `perfsage-slo-reporter-{version}.jar` (for example `perfsage-slo-reporter-0.1.0.jar` for tag `v0.1.0`).
+
 ```bash
-# Download the latest release JAR
-curl -L -o perfsage-slo-reporter.jar https://github.com/perfsage/perfsage-slo-reporter/releases/latest/download/perfsage-slo-reporter.jar
-
-# Copy to JMeter's lib/ext directory
-cp perfsage-slo-reporter.jar $JMETER_HOME/lib/ext/
-
-# Restart JMeter
+VERSION=0.1.0
+curl -fsSL -o perfsage-slo-reporter.jar \
+  "https://github.com/perfsage/perfsage-slo-reporter/releases/download/v${VERSION}/perfsage-slo-reporter-${VERSION}.jar"
+cp perfsage-slo-reporter.jar "$JMETER_HOME/lib/ext/"
 ```
+
+### Option 3: JMeter Plugins Manager
+
+See [README.md](README.md) (custom repository URL on GitHub Pages).
 
 ## Verification
 
 To verify the installation:
 
-1. Open JMeter GUI
-2. Right-click on your Thread Group
-3. Go to `Add` → `Listener`
-4. You should see `PerfSage SLO Reporter` in the list
+1. Open the JMeter GUI.
+2. Right-click the test plan or thread group → **Add** → **Listener** → **Backend Listener**.
+3. Set **Backend Listener implementation** to `com.perfsage.jmeter.SLOAnalysisListener` (or pick it from the class dropdown if registered).
+4. Run a short test and confirm `slo-report.json` / `slo-report.html` appear in your configured output directory.
 
 ## Configuration
 
